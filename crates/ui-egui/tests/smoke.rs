@@ -826,7 +826,7 @@ fn the_builders_questions_can_come_to_the_person_for_one_project() {
 fn the_approvals_link_is_clear_of_send() {
     use craft_anything_engine::workspace::{TargetRef, Workspace};
     // The smallest window the app allows, a normal one, and that at the highest zoom (640 points
-    // wide, so the switches take two rows). The smallest at 200% leaves the row below the window.
+    // wide, so the switches take two rows). The smallest at 200% has its own test below.
     for (size, zoom) in [((760.0, 520.0), 1.0), ((1280.0, 820.0), 1.0), ((1280.0, 820.0), 2.0)] {
         let d = tempfile::tempdir().unwrap();
         let ws = Workspace::create(d.path(), "Notes", "A notes app", TargetRef::None).unwrap();
@@ -858,6 +858,40 @@ fn the_approvals_link_is_clear_of_send() {
         } else {
             h.get_by_label("Approvals").click();
         }
+        h.run_steps(2);
+        assert!(egui::Popup::is_id_open(&h.ctx, egui::Id::new("project-approvals")), "the menu opened, {case}");
+    }
+}
+
+/// The smallest window at the highest zoom is 380 x 260 points. The row under the project's prompt
+/// box used to be drawn below it, out of reach, and a longer prompt pushed it further down.
+#[test]
+fn the_project_row_under_the_prompt_box_stays_reachable_at_200_percent() {
+    use craft_anything_engine::workspace::{TargetRef, Workspace};
+    for lines in [1, 8] {
+        let d = tempfile::tempdir().unwrap();
+        let ws = Workspace::create(d.path(), "Notes", "A notes app", TargetRef::None).unwrap();
+        let mut h = harness_sized(egui::vec2(760.0, 520.0), move || {
+            let mut a = demo::app(demo::engine(Mode::Beginner, true));
+            a.workspace = Some(ws);
+            a.state.screen = Screen::Project;
+            a.state.project_input = "a line of text\n".repeat(lines);
+            a
+        });
+        h.ctx.set_zoom_factor(2.0);
+        h.run_steps(6);
+        let viewport = h.ctx.content_rect();
+        let case = format!("{lines} line(s) at 760 x 520 and 200%");
+        for label in ["Send (Enter)", "Approvals", "Change it", "Just ask"] {
+            let rect = h.get_by_label(label).rect();
+            if !viewport.contains_rect(rect) {
+                h.get_by_label(label).scroll_to_me();
+                h.run_steps(3);
+            }
+            let rect = h.get_by_label(label).rect();
+            assert!(viewport.contains_rect(rect), "{label} at {rect:?} is outside {viewport:?}, {case}");
+        }
+        h.get_by_label("Approvals").click();
         h.run_steps(2);
         assert!(egui::Popup::is_id_open(&h.ctx, egui::Id::new("project-approvals")), "the menu opened, {case}");
     }

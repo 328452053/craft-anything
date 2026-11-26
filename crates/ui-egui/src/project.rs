@@ -937,10 +937,10 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
         // is measured each frame and used on the next.
         let comp_id = ui.id().with("project-composer-h");
         let comp_h = ui.data(|d| d.get_temp::<f32>(comp_id)).unwrap_or(110.0);
-        let rest = Vec2::new(width, (ui.available_height() - comp_h - chat::COMPOSER_GAP).max(40.0));
+        let rest = Vec2::new(width, (ui.available_height() - comp_h - chat::COMPOSER_GAP).max(0.0));
         ui.allocate_ui_with_layout(rest, egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.set_min_height(rest.y);
-            egui::ScrollArea::vertical().auto_shrink([false, false]).stick_to_bottom(true).show(ui, |ui| {
+            egui::ScrollArea::vertical().min_scrolled_height(0.0).max_height(rest.y).auto_shrink([false, false]).stick_to_bottom(true).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.add_space(pad);
                     ui.vertical(|ui| {
@@ -958,11 +958,14 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
             });
         });
         ui.add_space(chat::COMPOSER_GAP);
-        let r = ui.horizontal(|ui| {
-            ui.add_space(pad);
-            ui.vertical(|ui| composer(app, ui, max_w, &t, waiting.last()));
+        let room = ui.available_height().max(0.0);
+        let r = egui::ScrollArea::vertical().id_salt("project-composer").min_scrolled_height(0.0).max_height(room).auto_shrink([false, true]).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.add_space(pad);
+                ui.vertical(|ui| composer(app, ui, max_w, &t, waiting.last()));
+            })
         });
-        chat::remember_composer_height(ui, comp_id, comp_h, r.response.rect.height());
+        chat::remember_composer_height(ui, comp_id, comp_h, r.content_size.y);
     });
 }
 

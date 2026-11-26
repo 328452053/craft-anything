@@ -2440,9 +2440,11 @@ Gaps found while using the app for real projects.
       the smallest window, a normal one and 200% zoom, that the row holds still, and that a click
       or Enter opens the menu
       - claimed: ilijachrchev, branch bugfix/2435-approvals-link-gap
-- [ ] At the smallest window (760 x 520) and 200% zoom the project screen is 260 points tall, and
-      the row under the prompt box (Approvals, Change it / Just ask) is drawn below the window's
-      bottom edge, out of reach (found while fixing #2435; it was so before that change too)
+- [x] At the smallest window (760 x 520) and 200% zoom the project screen is 260 points tall, and
+      the row under the prompt box (Approvals, Change it / Just ask) was drawn below the window's
+      bottom edge, out of reach (found while fixing #2435; it was so before that change too). The
+      feed can shrink and the prompt box scrolls, so the row stays reachable, including with a long
+      prompt
       — claimed: AlexJoaquimPereira, branch bugfix/r2.9-small-window-project-row
 - [x] Esc while typing in a project's prompt box stays on the project and keeps the draft; it went
       to the new-project screen, because egui lets go of a field's focus on Esc before the app
