@@ -1309,9 +1309,10 @@ Owner: open · Status: in progress
       still resume it (#1115). Until there is a safe way to tell such a session from the person's
       own, say so where the sweep reports, with the commands to remove one by hand
       (`opencode session list`, then `opencode session delete <id>`)
-- [ ] A recorded session on an SSH host that can't be reached three times running is dropped from
+- [x] A recorded session on an SSH host that can't be reached three times running is dropped from
       the records while it may still be alive on the host (#1115). Keep the record and say which
       host still holds a session, rather than forgetting it
+      — claimed: Plastic-time, branch bugfix/r2.2-keep-unreachable-ssh-session-record
 - [ ] Removing the app through the system's own uninstaller or a launcher runs none of our
       clean-up, so recorded OpenCode sessions stay (#1115); only `craft-anything-cli uninstall`
       sweeps them. Say so in the uninstall docs, and sweep from each package's removal step
