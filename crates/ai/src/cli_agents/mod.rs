@@ -2497,6 +2497,9 @@ mod tests {
             assert!(tools.split(',').any(|tool| tool == "Write"), "{access:?}: {tools}");
             // #1105: a Deep builder can start subagents; Clean room keeps them out.
             assert_eq!(tools.split(',').any(|tool| tool == "Agent"), access == Access::Build, "{access:?}: {tools}");
+            // #2428: and is told how to wait for them, which a builder without them isn't.
+            let prompt = &builder[builder.iter().position(|x| x == "--append-system-prompt").unwrap() + 1];
+            assert_eq!(prompt.starts_with("PRE") && prompt.contains("notification"), access == Access::Build, "{access:?}: {prompt}");
         }
         assert_eq!(a[pos("--resume") + 1], "sess-1");
         assert_eq!(a[pos("--allowedTools") + 1], "mcp__craft-anything__*");
