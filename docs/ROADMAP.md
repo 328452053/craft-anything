@@ -1948,9 +1948,10 @@ Gaps found while using the app for real projects.
       regression in `session.rs` covers the switch, the target it closes and the annotation it
       keeps apart, the same-project reopen and returning to the first project
       — claimed: AlexJoaquimPereira, branch bugfix/r2.9-project-switch-targets
-- [ ] A target opened before any project keeps its empty annotations when the first project opens,
+- [x] A target opened before any project keeps its empty annotations when the first project opens,
       so a later edit can overwrite that project's stored annotations for the same target: load
       them when the first project opens (a switch closes its targets instead)
+      — claimed: Plastic-time, branch bugfix/r2.9-load-annotations-on-first-project-open
 - [ ] A build attaches its investigation to the app's engine, so starting a build closes the target
       the person had open (the app shows the project screen, and the target is gone when they go
       back), and parallel builds share one session and project: give each build its own session,
