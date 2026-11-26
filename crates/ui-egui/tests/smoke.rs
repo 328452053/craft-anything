@@ -844,6 +844,11 @@ fn the_approvals_link_is_clear_of_send() {
         // Not under Send or near it: a clear gap between them across the row.
         let gap = (send.left() - approvals.right()).max(approvals.left() - send.right());
         assert!(gap >= 48.0, "Approvals is {gap} pt from Send, {case}");
+        // The whole composer fits its own viewport, so its bottom row isn't clipped.
+        let clip = h.ctx.data(|d| d.get_temp::<egui::Rect>(egui::Id::new("project-composer-clip"))).expect("the composer viewport was recorded");
+        let content = h.ctx.data(|d| d.get_temp::<f32>(egui::Id::new("project-composer-content"))).expect("the composer content height was recorded");
+        assert!(content <= clip.height() + 0.5, "composer content {content} is clipped by {clip:?}, {case}");
+        assert!(clip.contains_rect(approvals), "Approvals {approvals:?} is outside the composer viewport {clip:?}, {case}");
         // The prompt box and the row under it hold still over several frames.
         for _ in 0..6 {
             h.run_steps(1);
@@ -882,13 +887,17 @@ fn the_project_row_under_the_prompt_box_stays_reachable_at_200_percent() {
         h.run_steps(6);
         let viewport = h.ctx.content_rect();
         let case = format!("{lines} line(s) at 760 x 520 and 200%");
+        let feed = h.ctx.data(|d| d.get_temp::<f32>(egui::Id::new("project-feed-height"))).expect("the feed viewport was recorded");
+        let clip = h.ctx.data(|d| d.get_temp::<egui::Rect>(egui::Id::new("project-composer-clip"))).expect("the composer viewport was recorded");
+        assert!(feed >= 60.0, "the feed viewport is only {feed} points tall, {case}");
         for label in ["Send (Enter)", "Approvals", "Change it", "Just ask"] {
             let rect = h.get_by_label(label).rect();
-            if !viewport.contains_rect(rect) {
+            if !clip.contains_rect(rect) {
                 h.get_by_label(label).scroll_to_me();
                 h.run_steps(3);
             }
             let rect = h.get_by_label(label).rect();
+            assert!(clip.contains_rect(rect), "{label} at {rect:?} is outside the composer {clip:?}, {case}");
             assert!(viewport.contains_rect(rect), "{label} at {rect:?} is outside {viewport:?}, {case}");
         }
         h.get_by_label("Approvals").click();
