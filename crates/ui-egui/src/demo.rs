@@ -368,5 +368,14 @@ mod tests {
         assert!(!first_session.settings.deep_mode, "demo::engine stays in Clean room until demo::deep enables Deep mode");
         assert!(first_session.cargo_env.is_some());
         assert!(!first_dir.exists(), "building demo::engine does not create directories on disk");
+        assert!(first_session.settings.ghidra_launcher().is_none(), "isolated empty store finds no host Ghidra");
+
+        // An explicit Ghidra stand-in inside the isolated store is found even with only_configured.
+        let support = first_session.settings.engine_store_dir().join(craft_anything_engines::ghidra::get::ID).join("standin").join("support");
+        let launcher = if cfg!(windows) { "analyzeHeadless.bat" } else { "analyzeHeadless" };
+        std::fs::create_dir_all(&support).unwrap();
+        std::fs::write(support.join(launcher), b"").unwrap();
+        assert_eq!(first_session.settings.ghidra_launcher(), Some(support.join(launcher)));
+        let _ = std::fs::remove_dir_all(&first_dir);
     }
 }
