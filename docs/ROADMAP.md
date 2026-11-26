@@ -2443,6 +2443,7 @@ Gaps found while using the app for real projects.
 - [ ] At the smallest window (760 x 520) and 200% zoom the project screen is 260 points tall, and
       the row under the prompt box (Approvals, Change it / Just ask) is drawn below the window's
       bottom edge, out of reach (found while fixing #2435; it was so before that change too)
+      — claimed: AlexJoaquimPereira, branch bugfix/r2.9-small-window-project-row
 - [x] Esc while typing in a project's prompt box stays on the project and keeps the draft; it went
       to the new-project screen, because egui lets go of a field's focus on Esc before the app
       looked at it (#2434). Esc with nothing focused still goes home, and still closes the palette,
