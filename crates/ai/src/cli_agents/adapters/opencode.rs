@@ -124,7 +124,7 @@ impl AgentAdapter for OpenCode {
         let by_hand = format!("Delete it yourself{on} with `opencode session delete --standalone {id}`, so OpenCode doesn't pick it up again.");
         let args = ["session", "delete", "--standalone", id].map(String::from);
         let proc = match host {
-            Some(h) => Process::new("ssh").args(crate::ssh::ssh_line_args(h, crate::cli_agents::remote_command(program, args.to_vec(), &[]))),
+            Some(h) => Process::new("ssh").args(crate::ssh::ssh_line_args(h, remote_discard_command(program, &args))),
             None => self.process(program).args(args),
         };
         let out = proc.timeout(std::time::Duration::from_secs(30)).stdout_cap(64 * 1024).run().map_err(|e| e.with_remediation(by_hand.clone()))?;
@@ -287,6 +287,21 @@ fn error_text(error: &Value) -> String {
         (None, _) if error.is_null() || error.as_object().is_some_and(serde_json::Map::is_empty) => "the service returned no error details".into(),
         (None, _) => shorten(&error.to_string()),
     }
+}
+
+/// Wrap the remote `opencode session delete` command in POSIX `sh -c` so a remote command exiting
+/// with 255 is remapped to 1 instead of colliding with `ssh`'s own exit 255 for transport
+/// failures, while preserving exit 0 and other non-zero exit codes.
+fn remote_discard_command(program: &str, args: &[String]) -> String {
+    let script = r#""$@"; s=$?; if [ "$s" -eq 255 ]; then exit 1; else exit "$s"; fi"#;
+    let mut parts = Vec::with_capacity(args.len() + 5);
+    parts.push("sh".to_string());
+    parts.push("-c".to_string());
+    parts.push(crate::ssh::shell_quote(script));
+    parts.push("_".to_string());
+    parts.push(crate::ssh::shell_quote(program));
+    parts.extend(args.iter().map(|a| crate::ssh::shell_quote(a)));
+    parts.join(" ")
 }
 
 /// Turn the result of `opencode session delete` (local or over SSH) into an outcome.
@@ -725,6 +740,28 @@ mod tests {
         assert_eq!(local_255.code, ErrorCode::ProgramFailed);
 
         assert!(discard_outcome(&with_code(Some(1), "Session not found: ses_1"), Some("studio"), "fix".into()).is_ok());
+    }
+
+    /// Guards that remote SSH discard commands wrap execution in POSIX `sh -c` to remap a remote
+    /// exit status of 255 to 1 without clobbering exit 0, other non-zero codes, or argument quoting.
+    #[test]
+    fn remote_discard_command_remaps_exit_255_and_quotes_arguments() {
+        let args = ["session", "delete", "--standalone", "ses_42"].map(String::from);
+        let cmd = remote_discard_command("/opt/my bin/opencode", &args);
+        assert!(cmd.starts_with("sh -c '"), "{cmd}");
+        assert!(cmd.contains(r#"if [ "$s" -eq 255 ]; then exit 1; else exit "$s"; fi"#), "{cmd}");
+        assert!(cmd.ends_with(" _ '/opt/my bin/opencode' session delete --standalone ses_42"), "{cmd}");
+
+        #[cfg(unix)]
+        {
+            for (remote_exit, expected_exit) in [(0, 0), (1, 1), (127, 127), (255, 1)] {
+                let script = format!("exit {remote_exit}");
+                let wrapped = remote_discard_command("sh", &["-c".into(), script]);
+                let out =
+                    craft_anything_platform::process::Process::new("sh").args(["-c", &wrapped]).timeout(std::time::Duration::from_secs(10)).run().unwrap();
+                assert_eq!(out.code, Some(expected_exit), "remote exit {remote_exit} should become {expected_exit}");
+            }
+        }
     }
 
     #[test]
