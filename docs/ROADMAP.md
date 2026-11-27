@@ -1804,11 +1804,12 @@ Owner: maintainers · Status: in progress
 ### R2.9 Everyday use: typing, projects, settings
 Owner: maintainers · Status: in progress
 Gaps found while using the app for real projects.
-- [ ] The headless app the UI tests use builds its engine with `Session::new` (`ui-egui`'s
+- [x] The headless app the UI tests use builds its engine with `Session::new` (`ui-egui`'s
       `demo::engine`), not the isolated test session, so a UI test that reaches a tool which
       saves, or looks for an installed program, touches the real config folder and finds what
       this computer has. Build it from a session kept in a temp folder with
       `engines.only_configured`, as `engine::testing::session()` does
+      — claimed: Plastic-time, branch bugfix/r2.9-isolate-demo-engine-session
 - [x] `i18n::trf` filled placeholders with repeated replacements, so a value containing a later
       placeholder was rewritten. It now fills them in one pass over the template: inserted names
       and other values stay literal, and unknown names and stray braces are kept as written. The
