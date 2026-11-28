@@ -965,10 +965,16 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
         // is measured each frame and used on the next. It keeps a few lines even when a tall
         // composer needs the room, and the composer scrolls instead.
         let comp_id = ui.id().with("project-composer-h");
+        let text_id = comp_id.with("text-height");
         let comp_h = ui.data(|d| d.get_temp::<f32>(comp_id)).unwrap_or(110.0);
+        let text_h = ui.data(|d| d.get_temp::<f32>(text_id)).unwrap_or_default();
         let available = ui.available_height().max(0.0);
         let min_feed = MIN_FEED_HEIGHT.min(available * 0.5);
-        let feed_h = (available - comp_h - chat::COMPOSER_GAP - ui.spacing().item_spacing.y).max(min_feed);
+        let room_for_feed_and_composer = available - chat::COMPOSER_GAP - ui.spacing().item_spacing.y;
+        // Pinned plans, picture tiles and controls share the same height as the draft. Use
+        // their measured height so a draft cannot grow into space they already occupy.
+        let text_limit = room_for_feed_and_composer - min_feed - (comp_h - text_h);
+        let feed_h = (room_for_feed_and_composer - comp_h).max(min_feed);
         let rest = Vec2::new(width, feed_h);
         let feed_area = ui.allocate_ui_with_layout(rest, egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.set_min_height(rest.y);
@@ -994,12 +1000,17 @@ pub fn show(app: &mut CraftApp, ui: &mut Ui) {
         let r = egui::ScrollArea::vertical().id_salt("project-composer").min_scrolled_height(0.0).max_height(room).auto_shrink([false, true]).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.add_space(pad);
-                ui.vertical(|ui| composer(app, ui, max_w, &t, waiting.last()));
+                ui.vertical(|ui| composer(app, ui, max_w, &t, waiting.last(), available, text_limit)).inner
             })
+            .inner
         });
+        if (text_h - r.inner).abs() > 0.5 {
+            ui.ctx().request_discard("the project draft changed height");
+        }
         chat::remember_composer_height(ui, comp_id, comp_h, r.content_size.y);
         // The layout regressions check the composer's own viewport, not only the window.
         ui.data_mut(|d| {
+            d.insert_temp(text_id, r.inner);
             d.insert_temp(egui::Id::new("project-feed-height"), feed_area.inner.inner_rect.height());
             d.insert_temp(egui::Id::new("project-composer-clip"), r.inner_rect);
             d.insert_temp(egui::Id::new("project-composer-content"), r.content_size.y);
@@ -1937,7 +1948,7 @@ fn waiting_notes(app: &mut CraftApp, ui: &mut Ui, waiting: &[Note], t: &Tokens) 
     }
 }
 
-fn composer(app: &mut CraftApp, ui: &mut Ui, width: f32, t: &Tokens, last_waiting: Option<&Note>) {
+fn composer(app: &mut CraftApp, ui: &mut Ui, width: f32, t: &Tokens, last_waiting: Option<&Note>, pane_height: f32, text_limit: f32) -> f32 {
     let running = app.running();
     if let Some(steps) = plan(&app.state.feed).filter(|p| running || p.iter().any(|s| s.status != PlanStatus::Done)) {
         let began = app.open_run().filter(|_| running).map(RebuildRun::started);
@@ -2011,7 +2022,9 @@ fn composer(app: &mut CraftApp, ui: &mut Ui, width: f32, t: &Tokens, last_waitin
             prompt_box::PromptBox {
                 name: "Ask for a change",
                 hint,
-                rows: (1, 8),
+                min_rows: 2,
+                viewport_height: prompt_box::ViewportHeight::Pane(pane_height),
+                text_height_limit: Some(text_limit),
                 attach: Some("Attach pictures (or drop or paste them here)"),
                 previews: &previews,
                 // The one way to pause (Continue picks up where it stopped).
@@ -2059,7 +2072,9 @@ fn composer(app: &mut CraftApp, ui: &mut Ui, width: f32, t: &Tokens, last_waitin
             }
         }
         questions_switch(app, ui);
-    });
+        out.text_height
+    })
+    .inner
 }
 
 /// Send what's in the prompt box: a question (the switch, or /btw) is answered without building.
